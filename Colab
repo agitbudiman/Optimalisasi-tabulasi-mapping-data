@@ -1,0 +1,87 @@
+import camelot
+import pandas as pd
+import os
+
+pdf_file_path = ['nama_file.pdf' ] #Ganti 'namafile' dengan nama file PDF yang akan digunakan.
+
+pdf_page_range = 'hal'  #Ganti 'hal' dengan rentang yang diinginkan.
+
+# Contoh penggunaan rentang halaman:
+# '1'          = Mengambil halaman 1 saja
+# '1,3,5'      = Mengambil halaman 1, 3, dan 5
+# '1-3'        = Mengambil halaman 1 sampai 3
+# '1-end'      = Mengambil dari halaman 1 hingga halaman terakhir
+# 'all'        = Mengambil seluruh halaman
+# '1-2,5-7'    = Mengambil halaman 1-2 dan 5-7
+
+output_excel_path = ['nama_output.xlsx'] # Define output_excel_path based on cell tKz_2Xa4VDUb to ensure it's available.
+
+# Assuming pdf_file_path is a list containing a single string with comma-separated file names
+# Convert it to a list of individual file names
+if isinstance(pdf_file_path, list) and len(pdf_file_path) == 1 and ',' in pdf_file_path[0]:
+    pdf_paths = [p.strip() for p in pdf_file_path[0].split(',')]
+elif isinstance(pdf_file_path, list):
+    pdf_paths = pdf_file_path
+else:
+    pdf_paths = [pdf_file_path] # Handle case if it's a single string
+
+# Do the same for output_excel_path
+if isinstance(output_excel_path, list) and len(output_excel_path) == 1 and ',' in output_excel_path[0]:
+    excel_paths = [p.strip() for p in output_excel_path[0].split(',')]
+elif isinstance(output_excel_path, list):
+    excel_paths = output_excel_path
+else:
+    excel_paths = [output_excel_path]
+
+# Ensure the number of PDF files matches the number of Excel output files
+if len(pdf_paths) != len(excel_paths):
+    print("Error: Jumlah file PDF tidak sesuai dengan jumlah file Excel output.")
+else:
+    for i in range(len(pdf_paths)):
+        current_pdf_file_path = pdf_paths[i]
+        current_output_excel_path = excel_paths[i]
+
+        # Memastikan file PDF tersedia
+        if not os.path.exists(current_pdf_file_path):
+            print(f"Error: File PDF tidak ditemukan pada lokasi '{current_pdf_file_path}'. Pastikan file sudah diunggah atau path sudah benar.")
+        else:
+            print(f"Memproses file PDF: {current_pdf_file_path}")
+            print(f"Mengekstrak tabel dari halaman: {pdf_page_range}")
+
+            try:
+                # Membaca tabel dari PDF berdasarkan halaman yang dipilih
+                # flavor='lattice' digunakan untuk tabel dengan garis yang jelas
+                # flavor='stream' digunakan untuk tabel berbasis jarak/spasi
+                tables = camelot.read_pdf(
+                    current_pdf_file_path,
+                    flavor='stream',
+                    pages=pdf_page_range)
+
+                # Mengecek apakah tabel berhasil ditemukan
+                if tables.n == 0:
+                    print(f"Tidak ada tabel yang ditemukan pada halaman {pdf_page_range} dari file '{current_pdf_file_path}'. Coba gunakan flavor='lattice' atau sesuaikan parameter ekstraksi.")
+
+                else:
+                    print(f"Ditemukan {tables.n} tabel dari '{current_pdf_file_path}'. Menyimpan hasil ke Excel '{current_output_excel_path}'...")
+
+                    # Menyimpan seluruh tabel ke file Excel
+                    with pd.ExcelWriter(current_output_excel_path, engine='openpyxl') as writer:
+
+                        for j, table in enumerate(tables):
+                            df = table.df
+
+                            # Menentukan nama sheet berdasarkan nomor tabel dan halaman
+                            sheet_name = f'Tabel_{j+1}_Hal_{table.page}'
+
+                            # Export dataframe ke sheet Excel
+                            df.to_excel(
+                                writer,
+                                sheet_name=sheet_name,
+                                index=False
+                            )
+
+                    print(f"Berhasil mengekstrak {tables.n} tabel dari '{current_pdf_file_path}' ke file '{current_output_excel_path}'.")
+
+            except Exception as e:
+                print(f"Terjadi kesalahan saat memproses PDF '{current_pdf_file_path}': {e}")
+                print("Pastikan file PDF tidak terkunci/password dan library Camelot telah terinstal dengan benar.")
